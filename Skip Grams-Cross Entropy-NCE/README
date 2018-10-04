@@ -1,1 +1,109 @@
+Implementation Details:
 
+1. Generating Batch:
+In the generate batch function, we were given a data index using which we could access any word in the dictionary.
+we were also given a batch size and we had to return that many amount of words. There was a skip window and num skips that tells how many words to skip in a window.
+
+
+Note that the skip window should be smaller than or equal to 2 times of skip window.
+
+Now the logic that i used was:
+
+First i would skip to the skip_window/2 number of words.
+I iterated over each word in the data.
+For each word, I took num_skips/2 words from the left and same number of words from the right.
+For each pair, i put the input word in batch array and corresponding right or left outer word in the label array.
+I would stop once there are batch_size number of labels in my label array. Then i would return batch and labels.
+
+Since data index is a global variable, i would also keep track of which data index it is on.
+Hence in the end, I would increase data index by 1. If data index reaches the end then, i would re-initialise it to zero and then again increase skip_window times.
+
+2. Cross Entropy Implementation
+We were given the embedding of the input words and the embeddings of the predicting words.
+For each word embedding in input, we need to take dot product with that of predicting word.
+
+Hence I multiplied both the matrices and took the diagonal part of each.
+The dimensions of input was [b*e] and dimensions of output were [b*e] too. Hence i took the transpose of the other one for multiplication. The final output
+dimensions of A part were [b*1]
+
+For the B part, before putting to the formula, Similar to A part I took transpose of true_w and matrix multiplied with input. But because there is a sigma in the
+formula of B part hence I needed to take reduce_sum. Finally the matrix converted to [b*1]
+
+As these were of similar dimensions these could be subtracted.
+The loss came out to be about 4.83
+
+3. NCE Implementation
+
+For applying the loss function of NCE loss, The given parameters were a little different
+
+We were given whole of dictionary and word id's for entire words from which we had to extract specific ones by using embedding_lookup.
+Also, the direct unigram probabilities were given but we had to convert them to tensors.
+
+To calculate the loss function,
+First we created our input and weights matrices of relevant size [b*e] by doing embedding_lookup. and then add bias in A1 term. Taking diagonal part as before.
+Dimension of A1 comes out to be [b*1]
+I calculated A2 using unigram probabilities and doing [b*1] reshape.
+I append that to A after taking log_sigmoid.
+
+B part is same as A part just instead of labels, we now have to use negative samples for lookup.
+Hence in the biases and unigram_prob we use negative samples for lookup. In B2 part I do a reduce sum of each of negative samples per word.
+In this way i get shape of B1 and B2 as [b*1] and thus B as [b*1].
+hence the dimensions of final answer remain same as cross entropy as [b*1]
+I put all these into corresponding formula and return my answer.
+The loss came out to be about 1.31
+
+4. Word analogy implementation
+in word_analogy.py, I performed the following steps
+a) I opened the file in read mode.and a python file to write. I read them line by line.
+b) I parsed the string by splitting at different points and storing them as separate lists.
+c) In the choices words, I then calculated word embeddings and took the difference of the words and took their average by
+reduce sum along the columns. hence I got an average vector of [128,1].
+d) I used this vector to calculate cosine similarity. and which ever similarity comes out to be most and the list , i store them correspondingly.
+e) My accuarcy came out to be around 29%.
+f) I then used a little variation of the above formula after going through a research paper, where i calculated difference vector of the first two vectors and add third vector to it. I then compared
+ it to the fourth vector using cosine similarity. This is just the equation balancing of the above difference equation.
+ My accuracy incraeased to 33.5%
+
+ 5. Top 20 words
+ a)For this i calculated the word embeddings of the given words and compared it using cosine similarity to the words in the dictionary.
+ b)I then sorted and chose the top 20 words with maximum similarity.
+ c)Note that I sorted them from 1 to 21 as the first word would be the given word itself.
+
+ 6.) Configurations and Hyper paramters tuning . I tuned the follwing hyper parameters.
+
+a) MAX_NUM_STEPS:
+The default number of training steps that have been given to us is 200001. However, we know that the more we train the model, the better. Hence I will try to increase the maximum number of training steps and see what happens.
+When I double the number of steps to 400001:
+For Cross Entropy Model, There is not much change by doubling the number of steps. There is a difference of only about 0.005 in the loss and accuracy remains the same i.e. 33.2%. To which i conclude the model has already been sufficiently trained till 200001 steps.
+For NCE model too, there was not much difference in the loss as well as accuracy. Loss remained 1.32 and accuracy 33.5%
+When I reduce max_num_steps to 60001:
+For cross entropy model, Reducing the number of training steps did not have any significant effect on the loss as accuracy. Loss was and accuracy was
+For NCE, reducing the number of steps also did not have any significant impact on accuracy or loss. Loss was 1.12 and accuracy 33.7%
+
+B) BATCH_SIZE:
+The default Batch size that is given to us is 128. So I will try to increase and reduce the batch size and see what effect it has on different models’ loss and
+When I increase the batch_size to 256:
+For cross entropy model, the accuracy increased a bit to 33.5%. The loss was around 5.5. Also, the processing was faster since more words were taken at a time for processing.
+For NCE model, the loss came out to be 1.38. And accuracy was about 33.4%.
+
+C) SKIP_WINDOW:
+Skip window considers how many words to skip left and right of our central  word while running the model. The default skip window given to us is 4. We will try reduce the skip window to 2 to skip lesser words and check whether that improves our accuracy. Since num_skips should be 2*skip_window, we change num_skips to 4
+For Cross Entropy model, we observe that the loss significantly reduces to 4.73. Also, the accuracy significantly improves to 33.9%
+For NCE, we observe that the loss improves to 1.34 and the accuracy significantly improves to 33.7%
+Due to this improvement, we will try decrease num_steps even more and see what happens.
+Now we will put skip_window=1 and num_skips=2 and see what happens:
+For Cross Entropy model, the loss significantly reduces to 4.46. Also, the accuracy significantly increases to 34.1%.
+For NCE model, the loss goes down to as low as 1.01. However, the accuracy decreases to 33.4
+
+D) Reducing the batch size to 64 and skip window=1 and num_skips=2:
+For cross Entropy model, the loss significantly reduces to 3.76. And the accuracy shoots up to as high as 35.6%. Best performance of my model till now.
+For NCE model for this configuration, the loss comes around to be 1.20 (an improvement) and the the accuracy goes up to 35.1%, the best for NCE model yet.
+We conclude this improvement, to the fact that since the number of words to skip is less, same input is used more times to train and generate the batch, hence the overall accuracy is improved.
+
+E) Changing the value of ‘k’ Negative samples and evaluating the effect.
+Increasing Doubling the number of k negative samples to 128, I did not observe any further change in accuracy. It remained the same as previous.
+
+
+Hence my best model was cross entropy model when I changed batch size to 64, skip_window to 1 and num_skips to 2. Here my accuracy was as high as 35.6%. My CE loss was 3.76.
+
+In this configuration, My NCE loss was 1.38 and NCE accuracy was 35.1%.
