@@ -1,3 +1,9 @@
+
+
+Developed a chatbot with reflections of human personality traits. 
+First created a baseline model using transcripts of TV series FRIENDS, modelling our bot to speak like Ross. 
+Finally, gave my own personality using fb-whatsapp chats.
+
 Essentials needed to run our code:
 File : FRIENDS_Chat_Keras.ipynb and Personal_chat_keras.ipynb
 1. Tensorflow
